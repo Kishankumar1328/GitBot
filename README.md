@@ -20,7 +20,7 @@
 
 Create a bot once. Put your coding agents to work across your repos.
 
-GitBot runs Claude Code, Codex, or OpenCode on your machine and gives each agent a reusable job, a place to work, and a conversation you can return to. You stay in control of its permissions.
+GitBot runs Claude Code, Codex, OpenCode, or Google Antigravity on your machine and gives each agent a reusable job, a place to work, and a conversation you can return to. You stay in control of its permissions.
 
 ```bash
 npm install -g @gitbot-hq/gitbot
@@ -142,10 +142,10 @@ Start with **Ask before tools** for Claude Code or OpenCode. For Codex, use **Re
 | --- | --- | --- | --- | --- |
 | Approval requests | When a tool requires it | When a tool requires it | No; the selected mode chooses a sandbox | Its configured CLI policy |
 | Allowed or disallowed tool list | Yes | Yes | Not enforced | Not enforced |
-| Resume threads and run setup steps | Yes | Yes | Yes | Yes; history reload is not yet available |
+| Resume threads and run setup steps | Yes | Yes | Yes | Yes |
 | Model | Optional | Required as `provider/model` | Optional | Optional |
 
-Antigravity uses the official `agy` headless NDJSON interface. It resumes a thread using the CLI conversation ID, but GitBot cannot yet reload historical Antigravity messages after a GitBot restart. Its CLI has no enforced read-only plan flag, so **Plan only** is rejected rather than run with weaker guarantees.
+Antigravity uses the official `agy` headless NDJSON interface. GitBot resumes a thread using the CLI conversation ID and retains the conversation history while the GitBot server is running. Its CLI has no enforced read-only plan flag, so **Plan only** is rejected rather than run with weaker guarantees. Antigravity must be installed and authenticated before it can be selected.
 
 An **Allowed tools** list limits which tools a bot can use; its permission mode decides when to ask. Codex cannot enforce that list, so choose Claude Code or OpenCode when a strict tool fence matters.
 
@@ -191,6 +191,28 @@ Build GitBot, then add a server entry in Antigravity's global
   }
 }
 ```
+
+On Windows, use escaped absolute paths:
+
+```json
+{
+  "mcpServers": {
+    "gitbot": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\ADMIN\\GitBot\\dist\\index.js",
+        "mcp",
+        "--repo",
+        "C:\\Users\\ADMIN\\GitBot"
+      ]
+    }
+  }
+}
+```
+
+After changing the MCP configuration, refresh Antigravity's MCP server list.
+The server is local and read-only; keep the authorized repository paths limited
+to folders you intend to expose.
 
 To authorize multiple repositories, add paths after `--repo`. The MCP process
 uses stdout exclusively for the protocol; diagnostics go to stderr. The server
