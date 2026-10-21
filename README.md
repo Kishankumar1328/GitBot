@@ -43,6 +43,24 @@ You'll need Node.js 18 or newer and at least one installed, signed-in coding age
 | OpenCode | Install the `opencode` CLI and configure a provider with `opencode auth login`. |
 | Antigravity | Install and sign in to the official `agy` CLI. |
 
+For Antigravity, verify the CLI and complete its browser login before starting
+an Antigravity bot:
+
+```powershell
+agy --version
+agy
+```
+
+The `agy` command opens or prints the official authentication flow. After login,
+verify the headless stream that GitBot uses:
+
+```powershell
+$input = '{"event":"user","message":{"content":"Reply with exactly: STREAM_OK"}}'
+$input | agy --input-format stream-json --output-format stream-json
+```
+
+The stream should return a result containing `STREAM_OK`.
+
 Install GitBot, then start it from the folder that holds your projects:
 
 ```bash
