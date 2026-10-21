@@ -31,6 +31,7 @@ const AGENT_OPTIONS = [
   { id: "claude-code", label: "Claude Code" },
   { id: "codex", label: "Codex" },
   { id: "opencode", label: "OpenCode" },
+  { id: "antigravity", label: "Antigravity" },
 ] as const;
 
 // New-thread folder picker as a slide-over panel. This mirrors

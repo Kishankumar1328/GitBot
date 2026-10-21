@@ -57,20 +57,20 @@ The client sends ordinary HTTP requests and receives a turn's output over a `GET
 
 ## Agents
 
-At startup gitbot checks which agents are usable — the `claude` CLI, the `@opencode-ai/sdk` package, the `codex` CLI — and reports them at `GET /agents`.
+At startup gitbot checks which agents are usable — the `claude` CLI, the `@opencode-ai/sdk` package, the `codex` CLI, and the `agy` CLI — and reports them at `GET /agents`.
 
 Each bot picks its agent. A thread stays on the agent that ran its first turn, because a session id only means something to the agent that issued it; switching a bot's agent applies to threads that have not started yet. Chatting with a bot whose agent is not installed fails with a `400` instead of falling back silently.
 
-All three agents get the same bot framing — the job prompt, the setup prompt and the `SETUP_COMPLETE` / `SETUP_FAILED` markers — from `src/bot-prompt.ts`.
+All four agents get the same bot framing — the job prompt, the setup prompt and the `SETUP_COMPLETE` / `SETUP_FAILED` markers — from `src/bot-prompt.ts`.
 
-| Bot feature | Claude Code | OpenCode | Codex |
-|---|---|---|---|
-| Instructions | appended to the system prompt | per-message `system` | `developer_instructions` config |
-| Resume + thread history | yes | yes | yes |
-| Setup runs | yes | yes | yes |
-| Per-call approvals | yes | yes | no — sandbox by permission mode |
-| `allowedTools` | yes, MCP tools included | yes | not supported |
-| `disallowedTools` | yes | yes | not supported |
+| Bot feature | Claude Code | OpenCode | Codex | Antigravity |
+|---|---|---|---|---|
+| Instructions | appended to the system prompt | per-message `system` | `developer_instructions` config | prefixed to the prompt |
+| Resume + thread history | yes | yes | yes | resume yes; history reload no |
+| Setup runs | yes | yes | yes | yes |
+| Per-call approvals | yes | yes | no — sandbox by permission mode | no — its configured CLI policy |
+| `allowedTools` | yes, MCP tools included | yes | not supported | not supported |
+| `disallowedTools` | yes | yes | not supported | not supported |
 
 `allowedTools` is a restriction, not an auto-approve list: whether a tool needs approval is decided by the permission mode alone. It is not applied to a bot's setup run, which may need tools the job itself never uses.
 
@@ -79,6 +79,8 @@ All three agents get the same bot framing — the job prompt, the setup prompt a
 **OpenCode** (`opencode`) uses `@opencode-ai/sdk`. gitbot starts an OpenCode server (or connects to one already on port 4096), keeps one client per folder, and listens to OpenCode's event stream, reconnecting after two seconds if it drops. Bots need a `model` in `provider/model` form; OpenCode's free default model refuses requests made through the SDK.
 
 **Codex** (`codex`) uses `@openai/codex-sdk`, which runs the Codex binary bundled with it rather than the `codex` on your PATH; your own install supplies the login (`codex login`). If the bundled binary cannot be found, gitbot falls back to the `codex` on PATH and logs a warning, since the two versions may differ. Codex has no per-call approvals in gitbot, and cannot have them: `codex exec` has no channel to ask on and reports its approval policy as `never` whichever policy it is handed, so a permission mode picks a sandbox and nothing else — `ask-permissions` → `read-only`, `allow-all-edits` → `workspace-write`, `yolo` → `danger-full-access` — and plan mode forces `read-only`. A mode change applies from the next turn. Because a codex bot cannot be asked, a *bot* set to `ask-permissions` opens its codex threads in `allow-all-edits`; the alternative is a bot that can never act and never prompts. Read-only stays reachable per conversation from the chat composer. Bot tool lists are enforced by the Claude Code and OpenCode harnesses only — codex has no equivalent, so a codex turn carrying one says so in the thread and runs unfenced.
+
+**Antigravity** (`antigravity`) uses the official `agy` CLI's headless NDJSON interface. The thread stores its `conversation_id` and passes it to `--conversation` on later turns. GitBot leaves Antigravity's configured CLI policy in place for ordinary modes; only GitBot's explicit `yolo` mode adds `--dangerously-skip-permissions`. The CLI has no enforced read-only plan flag, so GitBot rejects plan mode rather than weaken its permission guarantee. Tool lists are not supported per invocation, and conversation history cannot yet be reloaded after a GitBot restart.
 
 ## Workspace and file API
 

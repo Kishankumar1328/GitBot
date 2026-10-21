@@ -28,6 +28,7 @@ import {
 import { initAgent as initClaudeCode, runAgent as runClaudeCode, listSessions as listClaudeSessions, loadTranscript } from "./start-claude-code";
 import { initAgent as initOpencode, stopAgent as stopOpencode, runAgent as runOpencode, listSessions as listOpencodeSessions, getSessionHistory, abortSession as opencodeAbort, respondPermission as opencodePermission } from "./start-opencode";
 import { initAgent as initCodex, runAgent as runCodex, listSessions as listCodexSessions, loadTranscript as loadCodexTranscript } from "./start-codex";
+import { initAgent as initAntigravity, runAgent as runAntigravity } from "./start-antigravity";
 import { handleBotRoutes } from "./bot-routes";
 import { handleMarketplaceRoutes } from "./marketplace-proxy";
 import { getBot, getThread, touchThread, updateThread, botNeedsSetup, DEFAULT_BOT_AGENT } from "./bot-store";
@@ -72,7 +73,7 @@ export async function handleRequest(
     // GET /sessions
     if (method === "GET" && path === "/sessions") {
       const repoPath = query.repoPath ?? workspaceCwd;
-      const agent = query.agent as "claude-code" | "opencode" | "codex" | undefined;
+      const agent = query.agent as "claude-code" | "opencode" | "codex" | "antigravity" | undefined;
 
       if (!agent || agent === "claude-code") {
         const list = await listClaudeSessions(repoPath);
@@ -98,7 +99,7 @@ export async function handleRequest(
     if (method === "GET" && path.endsWith("/history") && historyId) {
       const store = sessions.get(historyId);
       if (!store) {
-        const agentParam = query.agent as "claude-code" | "opencode" | "codex" | undefined;
+        const agentParam = query.agent as "claude-code" | "opencode" | "codex" | "antigravity" | undefined;
         if (agentParam === "opencode") {
           const history = await getSessionHistory(historyId, query.repoPath ?? workspaceCwd);
           jsonOk(res, { messages: history });
@@ -106,6 +107,8 @@ export async function handleRequest(
           const repoPath = query.repoPath ?? workspaceCwd;
           const history = await loadCodexTranscript(historyId, repoPath);
           jsonOk(res, { messages: history });
+        } else if (agentParam === "antigravity") {
+          jsonOk(res, { messages: [] });
         } else {
           const repoPath = query.repoPath ?? workspaceCwd;
           const history = await loadTranscript(historyId, repoPath);
@@ -123,6 +126,8 @@ export async function handleRequest(
         }
         const history = await loadCodexTranscript(store.sdkSessionId, store.repoPath);
         jsonOk(res, { messages: history });
+      } else if (store.agent === "antigravity") {
+        jsonOk(res, { messages: [] });
       } else {
         const history = await loadTranscript(store.sdkSessionId ?? historyId, store.repoPath);
         jsonOk(res, { messages: history });
@@ -179,6 +184,8 @@ export async function handleRequest(
       if (store.agent === "claude-code" && store.abortController) {
         store.abortController.abort();
       } else if (store.agent === "codex" && store.abortController) {
+        store.abortController.abort();
+      } else if (store.agent === "antigravity" && store.abortController) {
         store.abortController.abort();
       } else if (store.agent === "opencode" && store.sdkSessionId) {
         await opencodeAbort(store.sdkSessionId, store.repoPath).catch(() => {});
@@ -292,8 +299,8 @@ export async function handleRequest(
       if (attachments != null && (!Array.isArray(attachments) || attachments.some((a: any) => typeof a?.url !== "string" || !a.url))) {
         jsonError(res, 400, "attachments must be an array of { url: string }"); return;
       }
-      if (agent !== "claude-code" && agent !== "opencode" && agent !== "codex") {
-        jsonError(res, 400, "agent must be claude-code, opencode, or codex");
+      if (agent !== "claude-code" && agent !== "opencode" && agent !== "codex" && agent !== "antigravity") {
+        jsonError(res, 400, "agent must be claude-code, opencode, codex, or antigravity");
         return;
       }
       if (!availableAgents.includes(agent)) {
@@ -350,6 +357,8 @@ export async function handleRequest(
         runClaudeCode(s).catch(onRunRejected);
       } else if (agent === "codex") {
         runCodex(s).catch(onRunRejected);
+      } else if (agent === "antigravity") {
+        runAntigravity(s).catch(onRunRejected);
       } else {
         runOpencode(s).catch(onRunRejected);
       }
@@ -481,10 +490,12 @@ export async function start(network: string = "local", portOverride?: number, ca
   const claudeAvailable = await initClaudeCode();
   const opencodeAvailable = await initOpencode();
   const codexAvailable = await initCodex();
+  const antigravityAvailable = await initAntigravity();
   const availableAgents: string[] = [
     ...(claudeAvailable ? ["claude-code"] : []),
     ...(opencodeAvailable ? ["opencode"] : []),
     ...(codexAvailable ? ["codex"] : []),
+    ...(antigravityAvailable ? ["antigravity"] : []),
   ];
   console.log(`  available agents: ${availableAgents.join(", ") || "none"}`);
 

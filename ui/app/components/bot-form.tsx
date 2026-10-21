@@ -48,6 +48,7 @@ const AGENT_OPTIONS = [
   { id: "claude-code", label: "Claude Code" },
   { id: "codex", label: "Codex" },
   { id: "opencode", label: "OpenCode" },
+  { id: "antigravity", label: "Antigravity" },
 ];
 
 function fallbackPref(id: string): AvatarPref {
@@ -475,9 +476,9 @@ export default function BotForm({
               onChange={(e) => setAllowedTools(e.target.value)}
               placeholder="Read, Grep, Edit, Bash"
             />
-            {agent === "codex" && allowedTools.trim() !== "" && (
+            {(agent === "codex" || agent === "antigravity") && allowedTools.trim() !== "" && (
               <small className="field-warn">
-                Codex ignores this list — it has no way to limit its own tools. Claude Code and
+                {agent === "codex" ? "Codex" : "Antigravity"} ignores this list — it has no per-run tool filter. Claude Code and
                 OpenCode enforce it.
               </small>
             )}

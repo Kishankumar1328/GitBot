@@ -3,6 +3,7 @@ node_modules
 out
 .env*
 !.env.example
+.agents/mcp_config.json
 *.tsbuildinfo
 dist
 .DS_Store

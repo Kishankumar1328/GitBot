@@ -41,6 +41,7 @@ You'll need Node.js 18 or newer and at least one installed, signed-in coding age
 | Claude Code | Install and sign in to the `claude` CLI. |
 | Codex | Install the `codex` CLI and run `codex login`. |
 | OpenCode | Install the `opencode` CLI and configure a provider with `opencode auth login`. |
+| Antigravity | Install and sign in to the official `agy` CLI. |
 
 Install GitBot, then start it from the folder that holds your projects:
 
@@ -96,7 +97,7 @@ You can also choose **Create with an agent** and give an installed agent the gui
 
 Choose a repo when you start a thread. The bot runs its agent in that folder and streams the conversation back to GitBot. You can close the browser tab and return to a running turn.
 
-With Claude Code or OpenCode, GitBot shows an approval card when a tool requires permission. Codex has no per-action approval channel, so its selected permission mode chooses a sandbox instead.
+With Claude Code or OpenCode, GitBot shows an approval card when a tool requires permission. Codex has no per-action approval channel, so its selected permission mode chooses a sandbox instead. Antigravity follows its configured CLI permission policy; only GitBot's explicit **Auto-approve all** mode passes Antigravity's all-tools bypass flag.
 
 ![A GitBot working through a task in a conversation](assets/screenshots/gitbot-working.webp)
 
@@ -107,7 +108,7 @@ With Claude Code or OpenCode, GitBot shows an approval card when a tool requires
 GitBot is a local server between your browser and the coding agents already installed on your machine:
 
 ```text
-Browser  ->  GitBot on your machine  ->  Claude Code, Codex, or OpenCode
+Browser  ->  GitBot on your machine  ->  Claude Code, Codex, OpenCode, or Antigravity
                   |                              |
                   +-- bots and threads           +-- works in your repo
 ```
@@ -137,12 +138,14 @@ Prefer to submit a listing yourself? Open the [GitBot Library publishing guide](
 
 Start with **Ask before tools** for Claude Code or OpenCode. For Codex, use **Read-only** when you do not want edits. Move to broader permissions only when you understand the bot's instructions and trust the repo it is working in. You can change a thread's permission mode from its chat bar. Codex and Plan changes apply from the next message; a broader Claude Code or OpenCode mode can also resolve approvals already waiting in the current reply.
 
-| | Claude Code | OpenCode | Codex |
-| --- | --- | --- | --- |
-| Approval requests | When a tool requires it | When a tool requires it | No; the selected mode chooses a sandbox |
-| Allowed or disallowed tool list | Yes | Yes | Not enforced |
-| Resume threads and run setup steps | Yes | Yes | Yes |
-| Model | Optional | Required as `provider/model` | Optional |
+| | Claude Code | OpenCode | Codex | Antigravity |
+| --- | --- | --- | --- | --- |
+| Approval requests | When a tool requires it | When a tool requires it | No; the selected mode chooses a sandbox | Its configured CLI policy |
+| Allowed or disallowed tool list | Yes | Yes | Not enforced | Not enforced |
+| Resume threads and run setup steps | Yes | Yes | Yes | Yes; history reload is not yet available |
+| Model | Optional | Required as `provider/model` | Optional | Optional |
+
+Antigravity uses the official `agy` headless NDJSON interface. It resumes a thread using the CLI conversation ID, but GitBot cannot yet reload historical Antigravity messages after a GitBot restart. Its CLI has no enforced read-only plan flag, so **Plan only** is rejected rather than run with weaker guarantees.
 
 An **Allowed tools** list limits which tools a bot can use; its permission mode decides when to ask. Codex cannot enforce that list, so choose Claude Code or OpenCode when a strict tool fence matters.
 
@@ -167,6 +170,31 @@ gitbot start --caffeinate    # keep a Mac awake during long jobs
 ```
 
 The folder where you run `gitbot start` becomes the workspace shown first in the folder picker. A thread can still run in another folder you can read.
+
+### Antigravity MCP
+
+GitBot can expose read-only bot, thread, repository and persisted-status data to
+Google Antigravity through a local stdio MCP server. Each repository is an
+explicit allowlist entry; GitBot exposes no files, threads or status outside
+those exact roots.
+
+Build GitBot, then add a server entry in Antigravity's global
+`~/.gemini/config/mcp_config.json` or a workspace `.agents/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "gitbot": {
+      "command": "node",
+      "args": ["/absolute/path/to/GitBot/dist/index.js", "mcp", "--repo", "/absolute/path/to/allowed-repository"]
+    }
+  }
+}
+```
+
+To authorize multiple repositories, add paths after `--repo`. The MCP process
+uses stdout exclusively for the protocol; diagnostics go to stderr. The server
+does not expose write, chat, setup, or approval operations.
 
 <br><br><br>
 

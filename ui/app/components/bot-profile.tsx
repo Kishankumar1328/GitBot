@@ -12,6 +12,7 @@ const AGENT_LABELS: Record<string, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
   opencode: "OpenCode",
+  antigravity: "Antigravity",
 };
 
 const PERMISSION_LABELS: Record<string, string> = {
@@ -255,7 +256,7 @@ export default function BotProfile({
           <dt>Tools</dt>
           <dd title={bot.allowedTools?.join(", ")}>
             {bot.allowedTools?.length
-              ? `${bot.allowedTools.join(", ")}${bot.agent === "codex" ? " (not enforced on Codex)" : ""}`
+              ? `${bot.allowedTools.join(", ")}${bot.agent === "codex" || bot.agent === "antigravity" ? " (not enforced by this agent)" : ""}`
               : "All tools"}
           </dd>
         </div>

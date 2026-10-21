@@ -22,6 +22,8 @@
     "build:cli": "tsc",
     "postbuild:cli": "node -e \"require('fs').chmodSync('dist/index.js',0o755)\"",
     "build:ui": "node scripts/build-ui.mjs",
+    "test:mcp": "node --experimental-strip-types --test scripts/mcp.test.mjs",
+    "test:antigravity": "node --test scripts/antigravity.test.mjs",
     "dev": "tsx src/index.ts",
     "postinstall": "node scripts/postinstall.mjs || exit 0",
     "prepublishOnly": "npm run build"
@@ -49,12 +51,15 @@
   "type": "commonjs",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.42",
+    "@modelcontextprotocol/server": "^2.3.1",
     "@openai/codex-sdk": "^0.155.1",
     "@opencode-ai/sdk": "^1.2.15",
     "commander": "^14.0.3",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
     "@types/node": "^25.2.3",
     "@types/qrcode-terminal": "^0.12.2",
     "tsx": "^4.21.0",

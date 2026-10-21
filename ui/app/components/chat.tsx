@@ -264,9 +264,17 @@ const codexPermissionCopy: Record<string, { label: string; detail: string }> = {
   "plan": { label: "Plan only", detail: "Explore without making edits." },
 };
 
+const antigravityPermissionCopy: Record<string, { label: string; detail: string }> = {
+  "ask-permissions": { label: "Use CLI policy", detail: "Uses Antigravity CLI's configured scoped permissions." },
+  "allow-all-edits": { label: "Use CLI policy", detail: "GitBot does not broaden Antigravity CLI permissions." },
+  yolo: { label: "Full access", detail: "Auto-approves all Antigravity CLI tools for this turn." },
+  plan: { label: "Plan unavailable", detail: "Antigravity CLI has no enforced read-only plan mode in GitBot." },
+};
+
 function permissionOptionsFor(agent: string) {
-  if (agent !== "codex") return permissionOptions;
-  return permissionOptions.map((option) => ({ ...option, ...codexPermissionCopy[option.mode] }));
+  if (agent !== "codex" && agent !== "antigravity") return permissionOptions;
+  const copy = agent === "codex" ? codexPermissionCopy : agent === "antigravity" ? antigravityPermissionCopy : undefined;
+  return copy ? permissionOptions.map((option) => ({ ...option, ...copy[option.mode] })) : permissionOptions;
 }
 
 const threadPermissionKey = "gitbot-thread-permissions";
@@ -1191,7 +1199,19 @@ export default function Chat({
 
   async function copyText(id: string, text: string) {
     try {
-      await navigator.clipboard.writeText(text);
+      // Clipboard API is unavailable on non-secure origins such as the LAN
+      // HTTP URL used by the local GitBot server. Keep a browser-native
+      // fallback so copying works in Chrome/Antigravity without HTTPS.
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // Fall through to the legacy copy path on insecure origins.
+          copyWithExecCommand(text);
+        }
+      } else {
+        copyWithExecCommand(text);
+      }
       setCopiedId(id);
       setCopyErrorId(null);
     } catch {
@@ -1202,6 +1222,21 @@ export default function Chat({
       setCopiedId((prev) => (prev === id ? null : prev));
       setCopyErrorId((prev) => (prev === id ? null : prev));
     }, 1500);
+  }
+
+  function copyWithExecCommand(text: string) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "true");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    if (!document.execCommand("copy")) {
+      area.remove();
+      throw new Error("Copy command failed");
+    }
+    area.remove();
   }
 
   function answerPerm(p: PermRequest, approved: boolean) {
@@ -1431,6 +1466,29 @@ export default function Chat({
                   <RichText key={si} botColor={botAvatar?.color} text={setup && m.role === "assistant" ? presentSetupText(s.text) : s.text} />
                 ) : null,
               )}
+              {m.role === "user" && (
+                <span className="msg-acts user-msg-acts">
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => copyText(m.id, msgText(m))}
+                    aria-label={copyErrorId === m.id ? "Copy failed" : copiedId === m.id ? "Copied prompt" : "Copy prompt"}
+                    data-tip={copyErrorId === m.id ? "Copy failed" : "Copy prompt"}
+                  >
+                    {copiedId === m.id ? <AnimatedActionIcon icon={CheckIcon} size={15} aria-hidden="true" /> : <AnimatedActionIcon icon={CopyIcon} size={15} aria-hidden="true" />}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => restoreToDraft(msgText(m))}
+                    aria-label="Rewrite prompt"
+                    data-tip="Rewrite prompt"
+                  >
+                    <AnimatedActionIcon icon={RefreshCwIcon} size={15} aria-hidden="true" />
+                  </button>
+                  {copyErrorId === m.id && <span className="copy-reply-error" role="status">Copy failed. Select the prompt to copy it.</span>}
+                </span>
+              )}
               {m.role === "assistant" &&
                 m.segs.some((s) => s.kind === "tools" && s.tools.length > 0) && (
                   <RunSummary
@@ -1459,9 +1517,9 @@ export default function Chat({
                     <button
                       type="button"
                       className="icon-btn"
-                      onClick={() => sendPrompt(m.retryPrompt!)}
-                      aria-label="Try again"
-                      data-tip="Try again"
+                      onClick={() => restoreToDraft(m.retryPrompt!)}
+                      aria-label="Rewrite prompt"
+                      data-tip="Rewrite prompt"
                     >
                       <AnimatedActionIcon icon={RefreshCwIcon} size={15} aria-hidden="true" />
                     </button>

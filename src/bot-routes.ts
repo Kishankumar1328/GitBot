@@ -5,6 +5,7 @@ import {
   parseQuery,
   IRequest,
   IResponse,
+  sessions,
 } from "./server-common";
 import {
   listBots,
@@ -28,6 +29,39 @@ import { existsSync, statSync } from "fs";
 import { loadTranscript } from "./start-claude-code";
 import { loadTranscript as loadCodexTranscript } from "./start-codex";
 import { getSessionHistory as loadOpencodeHistory } from "./start-opencode";
+
+/** Recover Antigravity turns while the GitBot server is running. The agy CLI
+ * does not expose a transcript file, but the session event stream is retained
+ * in memory until shutdown, so completed threads remain reopenable. */
+function loadAntigravityHistory(threadId: string): Array<{ role: string; content: Array<Record<string, unknown>> }> {
+  const store = [...sessions.values()].find((candidate) => candidate.threadId === threadId && candidate.agent === "antigravity");
+  if (!store) return [];
+  const messages: Array<{ role: string; content: Array<Record<string, unknown>> }> = [];
+  let assistantText = "";
+  const flushAssistant = () => {
+    if (!assistantText) return;
+    messages.push({ role: "assistant", content: [{ type: "text", text: assistantText }] });
+    assistantText = "";
+  };
+  for (const event of store.events) {
+    if (event.type === "user_prompt") {
+      flushAssistant();
+      messages.push({ role: "user", content: [{ type: "text", text: String(event.prompt ?? "") }] });
+    } else if (event.type === "assistant" && event.content) {
+      // Antigravity emits token-sized deltas. Concatenate them before handing
+      // history to the UI; otherwise each delta becomes a separate paragraph.
+      assistantText += String(event.content);
+    } else if (event.type === "tool_use") {
+      flushAssistant();
+      messages.push({ role: "assistant", content: [{ type: "tool_use", tool_name: String(event.tool_name ?? "tool"), tool_input: event.tool_input ?? {} }] });
+    } else if (event.type === "tool_result") {
+      flushAssistant();
+      messages.push({ role: "tool", content: [{ type: "tool_result", tool_name: String(event.tool_name ?? "tool"), text: String(event.output ?? "") }] });
+    }
+  }
+  flushAssistant();
+  return messages;
+}
 
 /**
  * REST surface for the bot hub: bots, their threads, and a thread's messages.
@@ -169,6 +203,8 @@ export async function handleBotRoutes(
         ? await loadCodexTranscript(thread.sdkSessionId, thread.repoPath)
         : thread.agent === "opencode"
           ? await loadOpencodeHistory(thread.sdkSessionId, thread.repoPath)
+          : thread.agent === "antigravity"
+            ? loadAntigravityHistory(thread.id)
           : await loadTranscript(thread.sdkSessionId, thread.repoPath);
     jsonOk(res, { messages });
     return true;

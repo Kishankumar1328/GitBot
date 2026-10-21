@@ -180,10 +180,11 @@ export type PermissionMode = "ask-permissions" | "allow-all-edits" | "yolo";
 
 export const EDIT_TOOLS = new Set(["Edit", "Write", "NotebookEdit"]);
 
-export const TOOL_BLACKLIST: Record<"claude-code" | "opencode" | "codex", Set<string>> = {
+export const TOOL_BLACKLIST: Record<"claude-code" | "opencode" | "codex" | "antigravity", Set<string>> = {
   "claude-code": new Set(["ExitPlanMode", "AskUserQuestion"]),
   "opencode": new Set(),
   "codex": new Set(),
+  "antigravity": new Set(),
 };
 
 /**
@@ -200,7 +201,7 @@ export const TOOL_BLACKLIST: Record<"claude-code" | "opencode" | "codex", Set<st
  */
 export function botPermissionToSession(
   botMode: "ask-permissions" | "auto-approve" | "plan",
-  agent: "claude-code" | "opencode" | "codex"
+  agent: "claude-code" | "opencode" | "codex" | "antigravity"
 ): { permissionMode: PermissionMode; mode?: "plan" | "build" } {
   switch (botMode) {
     case "auto-approve": return { permissionMode: "yolo" };
@@ -210,7 +211,7 @@ export function botPermissionToSession(
 }
 
 export function shouldAutoApprove(
-  agent: "claude-code" | "opencode" | "codex",
+  agent: "claude-code" | "opencode" | "codex" | "antigravity",
   toolName: string,
   mode: PermissionMode
 ): boolean {
@@ -224,7 +225,7 @@ export function shouldAutoApprove(
 export interface SessionStore {
   gitbotId: string;
   sdkSessionId: string | null;
-  agent: "claude-code" | "opencode" | "codex";
+  agent: "claude-code" | "opencode" | "codex" | "antigravity";
   repoPath: string;
   model?: string;
   mode?: "plan" | "build";
@@ -265,7 +266,7 @@ export const permissionsEmitter = new EventEmitter();
 export interface PermissionDumpItem {
   sessionId: string;
   sdkSessionId: string | null;
-  agent: "claude-code" | "opencode" | "codex";
+  agent: "claude-code" | "opencode" | "codex" | "antigravity";
   repoPath: string;
   repoName: string;
   toolUseID: string;
@@ -315,7 +316,7 @@ export function notifyPermissionsChanged(): void {
 
 export function createSession(
   gitbotId: string,
-  agent: "claude-code" | "opencode" | "codex",
+  agent: "claude-code" | "opencode" | "codex" | "antigravity",
   repoPath: string,
   model?: string,
   mode?: SessionStore["mode"],

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 process.on("SIGINT", () => {
-  console.log();
+  // stdout is the JSON-RPC wire when `gitbot mcp` is running.
+  console.error();
   process.exit(0);
 });
 
 import { Command } from "commander";
 import { start } from "./server";
+import { startMcpServer } from "./mcp";
 
 const program = new Command();
 
@@ -29,6 +31,19 @@ program
       process.exit(1);
     }
     await start("local", port, opts.caffeinate ?? false);
+  });
+
+program
+  .command("mcp")
+  .description("Run a read-only GitBot MCP server over stdio")
+  .requiredOption("--repo <path...>", "repository root authorized for MCP access; repeat or pass multiple paths")
+  .action(async (opts) => {
+    try {
+      await startMcpServer(opts.repo);
+    } catch (err: any) {
+      console.error(`gitbot mcp: ${err?.message ?? err}`);
+      process.exitCode = 1;
+    }
   });
 
 program.parse();
